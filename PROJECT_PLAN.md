@@ -145,15 +145,18 @@ PgQueryNarrative automatically converts SQL query results into structured busine
 │  ├── Result Profiler                 │
 │  ├── Metrics Calculator              │
 │  ├── LLM Client Interface            │
+│  ├── MCP Client (Optional)           │
+│  ├── Embedding Generator (Optional)  │
 │  └── Report Generator                │
 └──────┬───────────────────┬───────────┘
        │                   │
        ▼                   ▼
-┌─────────────┐    ┌──────────────┐
-│ PostgreSQL  │    │ Free LLM     │
-│  Database   │    │ (Ollama/     │
-│             │    │  Groq/Gemini)│
-└─────────────┘    └──────────────┘
+┌─────────────┐    ┌──────────────────┐
+│ PostgreSQL  │    │ Free LLM + MCP   │
+│  Database   │    │ (Ollama/         │
+│ + pgvector  │    │  Groq/Gemini)    │
+│ (optional)  │    │                  │
+└─────────────┘    └──────────────────┘
 ```
 
 ### Component Responsibilities
@@ -478,6 +481,186 @@ pgquerynarrative/
     ├── generate.sh           # Code generation script
     └── tools.go              # Build tools
 ```
+
+---
+
+## 5.1. Datasets, Examples & Test Data
+
+### Overview
+
+PgQueryNarrative needs sample data for development, testing, and demonstrations. This section covers where to get datasets, how to generate test data, and example queries to use during development.
+
+### Data Sources for Development
+
+#### 1. Public Datasets (Free Sources)
+
+**Kaggle Datasets:**
+- **Superstore Sales Dataset**: Real-world retail sales data with categories, regions, dates, and amounts
+- **E-commerce Sales Dataset**: Online sales transactions with customer and product data
+- **Retail Sales Dataset**: Time-series retail data perfect for trend analysis
+
+**How to Use:**
+1. Download dataset from Kaggle (CSV format)
+2. Import into PostgreSQL using `COPY` command
+3. Use for testing queries and narrative generation
+
+**GitHub Sample Datasets:**
+- AdventureWorks for PostgreSQL: Complete sample database with sales, HR, and inventory data
+- MySQL test_db converted to PostgreSQL: Employee and department sample data
+
+**Benefits:**
+- Real-world data patterns
+- Multiple data types (dates, categories, numbers)
+- Good for testing various query patterns
+- Free and available immediately
+
+#### 2. Synthetic Data Generation
+
+**Why Generate Synthetic Data:**
+- Full control over data characteristics
+- Can create specific test scenarios
+- No privacy concerns
+- Customizable data volumes
+
+**Tools for Data Generation:**
+- PostgreSQL `generate_series()` function for time-series data
+- Random functions for realistic variation
+- SQL scripts for bulk data insertion
+
+**Types of Synthetic Data to Generate:**
+
+**Sales Data:**
+- Date ranges: Last 12 months with realistic patterns
+- Categories: 5-10 product categories with different price ranges
+- Regions: 4-6 geographic regions
+- Sales representatives: 5-20 active reps
+- Amounts: Realistic price ranges per category
+- Seasonal patterns: Higher sales in certain months
+
+**User Activity Data:**
+- User IDs: 100-1000 unique users
+- Event types: Page views, clicks, purchases, signups
+- Session data: Duration, page views per session
+- Conversion events: Realistic conversion rates
+
+**Orders Data:**
+- Customer IDs: Links to user activity data
+- Order dates: Time-series over months
+- Status: Pending, shipped, delivered, cancelled
+- Amounts: Order totals with realistic distributions
+
+#### 3. Demo Data Schema Examples
+
+**Basic Sales Schema:**
+- Table: `demo.sales`
+- Columns: date, product_category, product_name, quantity, unit_price, total_amount, region, sales_rep
+- Volume: 5,000-50,000 rows for development
+- Time span: 12-24 months
+
+**User Analytics Schema:**
+- Table: `demo.user_activity`
+- Columns: user_id, event_date, event_type, page_views, session_duration, conversion
+- Volume: 10,000-100,000 rows
+- Event types: page_view, click, purchase, signup
+
+**Orders Schema:**
+- Table: `demo.orders`
+- Columns: order_date, customer_id, total_amount, status, shipping_country
+- Volume: 5,000-20,000 orders
+- Links to other tables via customer_id
+
+### Example Queries for Testing
+
+**Simple Aggregation:**
+- Query: Group sales by product category and calculate totals
+- Use Case: Testing basic metrics calculation
+- Expected Result: 5-10 rows with revenue totals per category
+
+**Time-Series Analysis:**
+- Query: Monthly revenue trends over last 6 months
+- Use Case: Testing time-series metric detection
+- Expected Result: 6 rows with month and revenue columns
+
+**Top N Analysis:**
+- Query: Top 10 products by total sales
+- Use Case: Testing top categories metric calculation
+- Expected Result: 10 rows ordered by revenue
+
+**Comparative Analysis:**
+- Query: Period-over-period revenue comparison (current vs previous month)
+- Use Case: Testing trend detection and delta calculations
+- Expected Result: Single row with current, previous, and growth percentage
+
+**Complex Multi-Table:**
+- Query: Join user activity with orders to calculate lifetime value
+- Use Case: Testing query execution with joins
+- Expected Result: Multiple rows with user metrics
+
+### Test Data Seed Scripts
+
+**Purpose:**
+- Automatically populate database with consistent test data
+- Ensure reproducible test environments
+- Create specific scenarios for edge case testing
+
+**Script Locations:**
+- `scripts/seed.sql` - Main seed script for demo data
+- `test/fixtures/` - Test-specific data fixtures
+- `scripts/seed_minimal.sql` - Minimal dataset for quick setup
+
+**Seed Script Contents:**
+1. Clean existing demo data (if any)
+2. Generate realistic sales data with variety
+3. Create user activity data
+4. Generate orders data
+5. Create indexes for performance
+6. Verify data was inserted correctly
+
+**Development Data Volume Recommendations:**
+- **Quick Testing**: 1,000-5,000 rows per table
+- **Normal Development**: 10,000-50,000 rows per table
+- **Performance Testing**: 100,000+ rows per table
+
+### Edge Case Test Scenarios
+
+**Empty Result Sets:**
+- Query that returns no rows
+- Test narrative generation for empty data
+- Verify appropriate error handling
+
+**Single Row Results:**
+- Aggregated queries returning one row
+- Test narrative format for single-value results
+- Ensure proper metric handling
+
+**Large Result Sets:**
+- Queries returning 1,000+ rows
+- Test result limiting functionality
+- Verify performance and memory usage
+
+**Null Values:**
+- Data with NULL in various columns
+- Test handling of missing data
+- Verify metrics calculation with NULLs
+
+**Date Edge Cases:**
+- Queries with only one day of data
+- Queries spanning multiple years
+- Queries with irregular date gaps
+
+### Using Real Business Data (Advanced)
+
+**Considerations:**
+- Data privacy and PII concerns
+- Need for data masking/anonymization
+- Compliance requirements (GDPR, HIPAA)
+- Data volume and performance impact
+
+**Recommendations:**
+- Start with synthetic data for development
+- Use anonymized data for testing
+- Implement PII detection and masking
+- Use read-only access for real data
 
 ---
 
@@ -906,6 +1089,504 @@ Structured prompts with:
 - Few-shot examples
 - JSON schema enforcement
 - Evidence citation requirements
+
+---
+
+## 8.1. RAG & Vectorization (Retrieval Augmented Generation)
+
+### Overview
+
+RAG (Retrieval Augmented Generation) and vectorization enhance PgQueryNarrative by enabling semantic search, query discovery, and context-aware narrative generation. This section explains how to implement these features as optional enhancements.
+
+### What is RAG?
+
+**RAG (Retrieval Augmented Generation)** combines:
+- **Vector embeddings**: Converting text into numerical vectors that capture semantic meaning
+- **Semantic search**: Finding similar content based on meaning, not exact text matching
+- **Context retrieval**: Providing relevant historical context to LLM for better narratives
+
+**How It Works:**
+1. Generate embeddings for saved queries, reports, and schema metadata
+2. Store embeddings in PostgreSQL using pgvector extension
+3. When generating narratives, search for similar historical data
+4. Retrieve relevant context and include in LLM prompt
+5. LLM generates more informed, context-aware narratives
+
+### Benefits for PgQueryNarrative
+
+#### 1. Semantic Query Discovery
+
+**Problem:** Users often don't know what queries exist or how to find similar ones.
+
+**Solution with RAG:**
+- Search saved queries by meaning, not just keywords
+- "Find queries about sales trends" → Finds semantically similar queries
+- Natural language query suggestions
+- Better query discovery and reuse
+
+**Use Cases:**
+- User asks: "Show me revenue by month"
+- System finds: Previously saved query "Monthly Sales Revenue Analysis"
+- System suggests: "We found a similar query you might want to use"
+
+#### 2. Intelligent Report Context Retrieval
+
+**Problem:** Narratives lack historical context and comparisons.
+
+**Solution with RAG:**
+- Find similar historical reports automatically
+- Include previous period narratives for comparison
+- Cross-reference related metrics from other queries
+- Pattern detection across multiple reports
+
+**Use Cases:**
+- Generate narrative for current month's sales
+- System retrieves previous month's report automatically
+- Narrative includes: "This month's revenue increased 15% compared to last month (previous report showed $2.1M vs current $2.4M)"
+
+#### 3. Schema & Domain Knowledge
+
+**Problem:** LLM may not understand what columns mean in business context.
+
+**Solution with RAG:**
+- Embed schema metadata with business descriptions
+- LLM can query: "What does 'total_amount' column represent?"
+- System retrieves: "Total sales amount including discounts, represents revenue"
+- Narrative uses correct business terminology
+
+#### 4. Query Result Caching with Semantic Matching
+
+**Problem:** Exact hash matching misses semantically similar queries.
+
+**Solution with RAG:**
+- Cache results based on semantic similarity
+- Two queries with same intent but different wording → cache hit
+- Faster response times
+- Reduced LLM costs
+
+### Vector Embeddings Basics
+
+#### What Are Embeddings?
+
+**Embeddings** are numerical representations of text that capture semantic meaning:
+- Similar concepts have similar vector values
+- Mathematical distance between vectors represents semantic similarity
+- Common dimensions: 384, 768, or 1536 values per text
+
+**Example:**
+- "Monthly sales revenue" → [0.23, -0.45, 0.67, ...] (384 numbers)
+- "Revenue by month" → [0.24, -0.44, 0.68, ...] (very similar)
+- "User login count" → [0.12, 0.89, -0.34, ...] (different meaning)
+
+#### Embedding Models
+
+**Recommended for Development (384 dimensions):**
+- all-MiniLM-L6-v2: Fast, lightweight, good quality
+- sentence-transformers: Easy to use, well-documented
+- Via Ollama: Can run locally with Ollama models
+
+**Production Options:**
+- all-mpnet-base-v2 (768 dimensions): Better quality, slower
+- text-embedding-3-small (1536 dimensions): Best quality, OpenAI compatible
+
+**Why 384 Dimensions?**
+- Good balance between quality and performance
+- Faster embedding generation (~50ms)
+- Lower storage requirements
+- Sufficient accuracy for semantic search
+
+### PostgreSQL pgvector Extension
+
+#### What is pgvector?
+
+**pgvector** is a PostgreSQL extension that adds vector data type and similarity search capabilities:
+- Store vector embeddings directly in PostgreSQL
+- Fast similarity search using specialized indexes
+- No need for separate vector database
+
+#### Installation Steps
+
+**1. Install pgvector Extension:**
+- Install PostgreSQL with pgvector support (PostgreSQL 11+)
+- Enable extension in database: `CREATE EXTENSION vector;`
+- Verify installation: `\dx vector` should show enabled
+
+**2. Add Vector Columns:**
+- Add `vector(384)` column type to tables
+- Store embeddings in PostgreSQL alongside text data
+- No external vector database needed
+
+**3. Create Vector Indexes:**
+- Use IVFFlat index for smaller datasets (< 100K vectors)
+- Use HNSW index for larger datasets (> 100K vectors)
+- Configure index parameters based on data volume
+
+#### Schema Updates for Vectorization
+
+**Enhanced Saved Queries Table:**
+- Add `embedding vector(384)` column
+- Stores semantic representation of query name + description
+- Enables semantic search of saved queries
+
+**Enhanced Reports Table:**
+- Add `narrative_embedding vector(384)` column
+- Stores embedding of narrative content
+- Enables finding similar historical reports
+- Add `result_embedding vector(384)` for semantic caching
+
+**Indexes:**
+- GIN index on vector columns for similarity search
+- Supports cosine similarity, L2 distance, and inner product
+
+### Implementation Strategy
+
+#### Phase 1: Basic Vectorization (MVP Enhancement)
+
+**Goal:** Enable semantic search of saved queries.
+
+**Steps:**
+1. Install pgvector extension in PostgreSQL
+2. Add embedding columns to saved_queries table
+3. Implement embedding generation for new saved queries
+4. Add semantic search function for query discovery
+5. Update query list endpoint to support semantic search
+
+**Benefits:**
+- Users can find queries by meaning
+- Better query reuse
+- Improved user experience
+
+#### Phase 2: Report Context Retrieval
+
+**Goal:** Include historical context in narratives.
+
+**Steps:**
+1. Add embedding columns to reports table
+2. Generate embeddings when reports are created
+3. Implement semantic search for similar reports
+4. Modify narrative generation to include retrieved context
+5. Update prompts to use historical context
+
+**Benefits:**
+- Narratives include comparisons to previous periods
+- More informative and contextual insights
+- Better understanding of trends
+
+#### Phase 3: Schema Knowledge Base
+
+**Goal:** LLM understands database schema semantics.
+
+**Steps:**
+1. Create schema_knowledge table with embeddings
+2. Populate with table and column descriptions
+3. Implement schema discovery via embeddings
+4. Include schema context in narrative prompts
+5. Generate domain-aware narratives
+
+**Benefits:**
+- LLM uses correct business terminology
+- Better understanding of data meaning
+- More accurate narratives
+
+### Performance Considerations
+
+#### Embedding Generation Overhead
+
+**Challenge:** Generating embeddings takes time (50-200ms per item).
+
+**Solution:**
+- Generate embeddings asynchronously (background job)
+- Don't block query save operations
+- Cache embeddings to avoid regeneration
+
+**Implementation Approach:**
+1. Save query immediately (synchronous)
+2. Generate embedding in background goroutine
+3. Update query with embedding when ready
+4. Search only considers queries with embeddings
+
+#### Vector Index Performance
+
+**Index Types:**
+- **IVFFlat**: Fast to build, good for < 100K vectors, approximate results
+- **HNSW**: Slower to build, better for large datasets, very fast queries, high accuracy
+
+**Recommendation:**
+- Start with IVFFlat for development
+- Upgrade to HNSW if dataset grows beyond 100K vectors
+- Monitor query performance and adjust index parameters
+
+#### Storage Requirements
+
+**Storage Calculation:**
+- 384 dimensions × 4 bytes (float32) = 1,536 bytes per vector
+- 10,000 saved queries × 1.5 KB = ~15 MB
+- Index overhead: ~5-10 MB additional
+- Total: ~25 MB for 10K queries (very manageable)
+
+**Memory Usage:**
+- Indexes loaded into memory for fast queries
+- Plan for 2-3x index size in available RAM
+- Monitor PostgreSQL memory usage
+
+### Database Performance Impact
+
+#### Positive Impacts
+
+**Faster Semantic Search:**
+- Vector similarity search is faster than full-text search on large datasets
+- Index-optimized queries: < 10ms for 100K vectors
+- Better user experience than keyword search
+
+**Reduced LLM Token Usage:**
+- Semantic caching reduces redundant LLM calls
+- Retrieved context improves prompts without adding many tokens
+- Cost savings on paid LLM APIs
+
+#### Challenges & Mitigations
+
+**Challenge: Initial Index Build Time**
+- **IVFFlat**: Seconds to minutes for 100K vectors
+- **HNSW**: Minutes for 100K vectors
+- **Mitigation**: Build indexes during low-traffic periods, use async index creation
+
+**Challenge: Memory Usage**
+- Vector indexes consume RAM
+- **Mitigation**: Monitor memory, adjust index parameters, use appropriate index type for dataset size
+
+**Challenge: Embedding Generation Latency**
+- Adding embeddings slows save operations
+- **Mitigation**: Async embedding generation, don't block on embedding creation
+
+### Security Considerations
+
+**Data Privacy:**
+- Embeddings don't expose raw data, but patterns can reveal information
+- Embed business data carefully
+- Consider PII detection before embedding
+
+**Access Control:**
+- Vector columns are in app schema (separate from read-only business data)
+- Same security model applies to embeddings
+- No additional security concerns beyond normal data access
+
+---
+
+## 8.2. MCP Servers (Model Context Protocol)
+
+### Overview
+
+MCP (Model Context Protocol) is an open protocol that allows LLMs to access external tools and data sources through a standardized interface. This section explains how MCP servers can enhance PgQueryNarrative, though they are **optional** and can be added as future enhancements.
+
+### What is MCP?
+
+**Model Context Protocol (MCP)** is a protocol developed by Anthropic that:
+- Provides standardized way for LLMs to call external tools
+- Enables LLMs to discover available capabilities automatically
+- Allows secure, controlled access to database and system resources
+- Supports multiple LLM providers through consistent interface
+
+**Key Concepts:**
+- **MCP Server**: Service that exposes tools and data sources via MCP protocol
+- **MCP Client**: LLM that connects to MCP server and calls tools
+- **Tools**: Capabilities exposed by MCP server (e.g., "get_table_schema", "search_queries")
+- **Resources**: Data sources accessible through MCP (e.g., database schemas, saved queries)
+
+### How MCP Can Help PgQueryNarrative
+
+#### Use Case 1: Schema Discovery & Context
+
+**Problem:** LLM may need to understand database schema to generate better narratives.
+
+**Solution with MCP:**
+- MCP server exposes "get_table_schema" tool
+- LLM can call tool to understand column meanings
+- Narrative generation becomes more accurate
+- Better business terminology usage
+
+**Example Flow:**
+1. User runs query on sales table
+2. LLM needs context: "What does 'total_amount' mean?"
+3. LLM calls MCP tool: `get_table_schema("demo.sales")`
+4. MCP returns: Column descriptions and business meanings
+5. LLM uses context: "Revenue totaled $2.4M (total_amount represents sales revenue including discounts)"
+
+#### Use Case 2: Query Discovery & Suggestions
+
+**Problem:** Users don't know what queries exist or how to write them.
+
+**Solution with MCP:**
+- MCP server exposes "search_saved_queries" tool
+- LLM can search queries by natural language
+- Suggest queries based on user questions
+- Natural language to query mapping
+
+**Example Flow:**
+1. User asks: "Show me sales trends for last month"
+2. LLM calls MCP tool: `search_saved_queries("monthly sales trends")`
+3. MCP returns: List of similar saved queries
+4. LLM suggests: "I found a saved query 'Monthly Sales by Category' - would you like to use it?"
+
+#### Use Case 3: Enhanced Narrative Generation
+
+**Problem:** Narratives lack historical context and related insights.
+
+**Solution with MCP:**
+- MCP server exposes "get_historical_context" tool
+- LLM can retrieve similar past reports
+- Include period-over-period comparisons
+- Cross-reference related metrics
+
+**Example Flow:**
+1. User generates report for current month
+2. LLM calls MCP tool: `get_historical_context(query_hash)`
+3. MCP returns: Similar reports from previous months
+4. LLM includes: "Compared to last month's report, revenue increased 12%"
+
+### MCP Tools for PostgreSQL
+
+**Recommended Tools to Implement:**
+
+**1. Schema Discovery Tools:**
+- `get_table_schema`: Get column information for a table
+- `list_available_tables`: List all tables in allowed schemas
+- `get_table_sample`: Get sample rows to understand data structure
+
+**2. Query Management Tools:**
+- `search_saved_queries`: Search queries by keywords or semantic similarity
+- `get_saved_query`: Retrieve a specific saved query
+- `suggest_queries`: Suggest queries based on natural language question
+
+**3. Context Retrieval Tools:**
+- `get_historical_context`: Find similar historical reports
+- `get_related_metrics`: Get related metrics from other tables
+- `get_report_summary`: Get summary of previous reports
+
+**4. Data Access Tools:**
+- `get_table_sample`: Sample data from tables (limited, read-only)
+- `execute_readonly_query`: Execute validated read-only queries (with restrictions)
+
+### Implementation Approach
+
+#### Phase 1: MVP Without MCP
+
+**Focus:** Core functionality without MCP complexity.
+
+**Benefits:**
+- Faster initial development
+- Less complexity
+- Can add MCP later as enhancement
+
+**Core Features:**
+- Query execution
+- Metrics calculation
+- Narrative generation
+- Basic saved queries
+
+#### Phase 2: Add MCP as Optional Enhancement
+
+**When to Add:** After MVP is stable and working.
+
+**Approach:**
+- Make MCP completely optional (feature flag)
+- Core system works without MCP
+- Gradual rollout for testing
+
+**Implementation Steps:**
+1. Create MCP server component (separate service or integrated)
+2. Define tools to expose (start with schema discovery)
+3. Integrate MCP client with LLM interface
+4. Test with one LLM provider first (Groq or Gemini - better tool support)
+5. Add more tools incrementally
+
+#### Phase 3: Advanced MCP Features
+
+**Future Enhancements:**
+- Natural language to SQL query generation
+- Intelligent query suggestions
+- Advanced context retrieval
+- Multi-database support
+
+### Architecture with MCP
+
+**MCP as Middleware Layer:**
+- MCP server sits between LLM and PostgreSQL
+- LLM makes tool calls through MCP protocol
+- MCP server validates and executes requests
+- Results returned to LLM for narrative generation
+
+**Optional Integration:**
+- MCP can be disabled via configuration
+- System works with or without MCP
+- No breaking changes to core functionality
+
+### Benefits & Trade-offs
+
+#### Benefits
+
+**Better LLM Capabilities:**
+- LLM can discover schema automatically
+- Understand data context better
+- Generate more accurate narratives
+
+**Modular Design:**
+- Tools can be added independently
+- Clear separation of concerns
+- Easier to test and maintain
+
+**Future-Proof:**
+- Standard protocol (not vendor-specific)
+- Works with multiple LLM providers
+- Extensible tool ecosystem
+
+#### Trade-offs
+
+**Complexity:**
+- Additional component to maintain
+- Learning curve for MCP protocol
+- More moving parts
+
+**Performance:**
+- Additional network calls for tool execution
+- Slight latency increase
+- Requires LLM with function calling support
+
+**LLM Compatibility:**
+- Requires LLM with function calling/tool use support
+- Ollama: Partial support (varies by model)
+- Groq/Gemini: Good support
+- May limit LLM provider options initially
+
+### Recommended Approach
+
+**For Beginners:**
+1. **Start without MCP** - Focus on core functionality first
+2. **Learn basics** - Get comfortable with query execution and narrative generation
+3. **Add MCP later** - Once core system is stable, add MCP as enhancement
+4. **Start simple** - Begin with schema discovery tools only
+
+**Development Timeline:**
+- **MVP**: Without MCP (simpler, faster)
+- **Phase 2**: Add basic MCP with schema tools
+- **Phase 3**: Expand MCP with query suggestions and context retrieval
+
+**When MCP is Most Valuable:**
+- Large number of saved queries (hard to discover)
+- Complex schema (LLM needs context)
+- Need for historical comparisons
+- Natural language query interface requirements
+
+### Learning Resources
+
+**MCP Protocol:**
+- Official MCP documentation: Model Context Protocol specification
+- Example implementations in Go
+- Community MCP servers for reference
+
+**Function Calling with LLMs:**
+- OpenAI function calling guide (concepts apply to other providers)
+- Groq tools documentation
+- Gemini function calling examples
 
 ---
 
@@ -1927,20 +2608,155 @@ type SecurityConfig struct {
 
 ## 12. Testing Strategy
 
+### Overview
+
+Testing is critical for ensuring PgQueryNarrative works correctly. This section provides beginner-friendly testing procedures and step-by-step instructions for implementing comprehensive tests.
+
+### Testing Philosophy
+
+**Why Test?**
+- Catch bugs before they reach production
+- Ensure features work as expected
+- Build confidence in code changes
+- Document expected behavior
+- Enable safe refactoring
+
+**Testing Pyramid:**
+- **Unit Tests** (base, most tests): Fast, test individual functions
+- **Integration Tests** (middle, fewer tests): Test component interactions
+- **E2E Tests** (top, fewest tests): Test complete user workflows
+
 ### Unit Tests
 
-- Query validation
-- Metrics calculation
-- Result profiling
-- LLM response parsing
-- Storage operations
+**Purpose:** Test individual functions and components in isolation.
+
+**What to Test:**
+
+**Query Validation:**
+- Valid SQL queries are accepted
+- Invalid SQL queries are rejected
+- Disallowed keywords are blocked
+- Schema access is validated
+- Query length limits are enforced
+
+**Test Approach:**
+1. Create test cases with various SQL queries (valid and invalid)
+2. Call validation function with each query
+3. Verify correct acceptance or rejection
+4. Check error messages are clear and helpful
+
+**Metrics Calculation:**
+- Totals are calculated correctly
+- Averages are computed accurately
+- Top categories are identified properly
+- Time-series trends are detected
+- Period-over-period changes are calculated
+
+**Test Approach:**
+1. Create sample query results with known values
+2. Run metrics calculation function
+3. Verify calculated metrics match expected values
+4. Test edge cases (empty results, single row, all nulls)
+
+**Result Profiling:**
+- Column types are detected correctly (numeric, date, category)
+- Time-series patterns are identified
+- Grouped data structures are recognized
+- Measure and dimension candidates are found
+
+**Test Approach:**
+1. Create test data with various column types
+2. Run profiling function
+3. Verify correct column type detection
+4. Check pattern recognition accuracy
+
+**LLM Response Parsing:**
+- Valid JSON responses are parsed correctly
+- Invalid JSON is handled gracefully
+- Missing fields are detected
+- Malformed responses return errors
+- Response structure is validated
+
+**Test Approach:**
+1. Create mock LLM responses (valid and invalid)
+2. Run parsing function
+3. Verify correct parsing or error handling
+4. Check all required fields are present
+
+**Storage Operations:**
+- Queries are saved correctly
+- Reports are stored properly
+- Audit logs are created
+- Data retrieval works
+- Deletion functions correctly
+
+**Test Approach:**
+1. Use test database or in-memory storage
+2. Perform save, retrieve, update, delete operations
+3. Verify data integrity
+4. Check constraints are enforced
 
 ### Integration Tests
 
-- Database operations
-- LLM client integration
-- API endpoint integration
-- Report generation workflow
+**Purpose:** Test how components work together.
+
+**What to Test:**
+
+**Database Operations:**
+- Connection to PostgreSQL works
+- Queries execute correctly
+- Results are returned properly
+- Transaction handling works
+- Connection pooling functions
+
+**Test Approach:**
+1. Set up test database (Docker container or test instance)
+2. Run migrations to create schema
+3. Seed test data
+4. Execute database operations
+5. Verify results and cleanup
+
+**LLM Client Integration:**
+- LLM client connects successfully
+- Requests are formatted correctly
+- Responses are received and parsed
+- Error handling works (timeout, connection failure)
+- Different providers work (Ollama, Groq, Gemini)
+
+**Test Approach:**
+1. Use mock LLM server or real provider (development)
+2. Send test requests
+3. Verify responses are handled correctly
+4. Test error scenarios (timeout, invalid response)
+5. Test with different LLM providers
+
+**API Endpoint Integration:**
+- HTTP endpoints respond correctly
+- Request validation works
+- Response format is correct
+- Error responses are proper
+- Authentication/authorization (if implemented)
+
+**Test Approach:**
+1. Start test server
+2. Send HTTP requests to endpoints
+3. Verify response status codes
+4. Check response body structure
+5. Test error cases (invalid input, missing fields)
+
+**Report Generation Workflow:**
+- Complete flow from query to narrative works
+- Query execution → profiling → metrics → LLM → narrative → storage
+- All steps execute successfully
+- Data flows correctly between components
+- Errors are handled at each step
+
+**Test Approach:**
+1. Execute complete workflow end-to-end
+2. Verify each step completes successfully
+3. Check data is passed correctly between steps
+4. Test error scenarios at each step
+5. Verify final output (narrative) is valid
 
 ### E2E Tests (End-to-End)
 
@@ -1977,56 +2793,45 @@ type SecurityConfig struct {
    - Database connection failure
    - Rate limiting
 
-**E2E Test Implementation**:
+**E2E Test Implementation Steps:**
 
-```go
-// test/e2e/e2e_test.go
-package e2e
+**Test 1: Query to Report Flow**
+1. Setup test environment (database, test data)
+2. Send POST request to `/api/v1/queries/run` with test SQL query
+3. Verify response status is 200 OK
+4. Verify response contains columns, rows, and metrics
+5. Verify row count matches expected value
+6. Send POST request to `/api/v1/reports/generate` with query and context
+7. Verify response status is 200 OK
+8. Verify response contains narrative with headline and takeaways
+9. Verify report ID is returned
+10. Send GET request to `/api/v1/reports/{id}` to retrieve saved report
+11. Verify stored report matches generated report
+12. Cleanup test data
 
-import (
-    "context"
-    "testing"
-    "github.com/stretchr/testify/require"
-)
+**Test 2: Saved Queries Flow**
+1. Send POST request to save a query
+2. Verify query is saved and ID is returned
+3. Send GET request to list saved queries
+4. Verify saved query appears in list
+5. Send GET request to retrieve specific saved query
+6. Verify query details match original
+7. Generate report from saved query
+8. Verify report is created successfully
+9. Send DELETE request to remove saved query
+10. Verify query is deleted (404 on retrieval)
 
-func TestE2E_QueryToReport(t *testing.T) {
-    ctx := context.Background()
-    
-    // Setup test environment
-    client := setupTestClient(t)
-    db := setupTestDB(t)
-    defer cleanup(t, db)
-    
-    // Execute query
-    queryResp, err := client.RunQuery(ctx, &RunQueryRequest{
-        SQL: "SELECT * FROM demo.sales LIMIT 10",
-        Limit: 100,
-    })
-    require.NoError(t, err)
-    require.NotNil(t, queryResp)
-    require.Greater(t, len(queryResp.Rows), 0)
-    
-    // Generate report
-    reportResp, err := client.GenerateReport(ctx, &GenerateReportRequest{
-        SQL: "SELECT * FROM demo.sales LIMIT 10",
-        Context: ReportContext{
-            Audience: "executive",
-            Tone: "concise",
-        },
-    })
-    require.NoError(t, err)
-    require.NotNil(t, reportResp)
-    require.NotEmpty(t, reportResp.Narrative.Headline)
-    require.Greater(t, len(reportResp.Narrative.KeyTakeaways), 0)
-    
-    // Verify report stored
-    storedReport, err := client.GetReport(ctx, reportResp.ID)
-    require.NoError(t, err)
-    require.Equal(t, reportResp.ID, storedReport.ID)
-}
-```
+**Test 3: Error Handling Flow**
+1. Send invalid SQL query (syntax error)
+2. Verify error response with clear message
+3. Send query with disallowed keywords (INSERT, DELETE)
+4. Verify error response indicating security violation
+5. Test database connection failure scenario
+6. Verify graceful error handling
+7. Test LLM service unavailable scenario
+8. Verify appropriate error response
 
-**E2E Test Infrastructure**:
+**E2E Test Infrastructure:**
 
 - **Test Containers**: Use testcontainers-go for PostgreSQL
 - **Mock LLM**: Use in-memory mock for LLM responses
@@ -2039,19 +2844,165 @@ func TestE2E_QueryToReport(t *testing.T) {
 - `make test-e2e-slow` - Include slow LLM integration tests
 - `make test-e2e-docker` - Run with Docker containers
 
-### Test Data
+### Test Data Setup
 
-- Seed scripts with realistic demo data
-- Fixtures for various query patterns
-- Edge cases (empty results, single row, etc.)
-- Performance test datasets (large result sets)
+**Purpose:** Ensure tests have consistent, predictable data.
+
+**Seed Scripts:**
+1. Create seed script with realistic test data
+2. Generate sales data for last 6 months
+3. Include various product categories and regions
+4. Ensure data is deterministic (same data every test run)
+5. Use fixtures for specific test scenarios
+
+**Test Fixtures:**
+1. Create fixture files for common test scenarios
+2. Edge case fixtures: empty results, single row, large datasets
+3. Query fixtures: sample SQL queries for testing
+4. Result fixtures: expected query results for validation
+
+**Fixture Organization:**
+- `test/fixtures/queries/` - Sample SQL queries
+- `test/fixtures/results/` - Expected query results
+- `test/fixtures/data/` - Seed data for specific scenarios
+- `test/fixtures/narratives/` - Expected narrative outputs for validation
+
+**Using Test Containers:**
+1. Use testcontainers-go for PostgreSQL
+2. Spin up fresh database for each test run
+3. Run migrations automatically
+4. Seed test data
+5. Run tests
+6. Tear down database after tests
+
+**Benefits:**
+- Isolated test environment
+- No dependencies on external database
+- Consistent test conditions
+- Can run tests in parallel
+
+### Testing Procedures by Phase
+
+**Phase 1: Foundation Testing**
+1. Test project structure setup
+2. Test database connection
+3. Test migration execution
+4. Test basic query execution
+5. Verify error handling for invalid queries
+
+**Phase 2: Core Features Testing**
+1. Test result profiling with various data types
+2. Test metrics calculation with known data
+3. Test Ollama LLM integration (or mock)
+4. Test narrative generation end-to-end
+5. Verify narrative structure and content
+
+**Phase 3: UI & Polish Testing**
+1. Test web UI loads correctly
+2. Test query editor functionality
+3. Test saved queries management
+4. Test report display
+5. Test export functionality
+
+**Phase 4: Enhancements Testing**
+1. Test time-series analysis
+2. Test additional LLM providers
+3. Test error handling improvements
+4. Test performance optimizations
+
+### Test Execution Workflow
+
+**Daily Development Testing:**
+1. Run unit tests before committing: `make test-unit`
+2. Run integration tests before pushing: `make test-integration`
+3. Run linter: `make lint`
+4. Verify all tests pass locally
+
+**Pre-commit Testing:**
+1. Run full test suite: `make test`
+2. Check test coverage: `make test-coverage`
+3. Verify coverage meets goals (90%+ for unit tests)
+4. Fix any failing tests before committing
+
+**CI/CD Testing:**
+1. Automated test runs on pull requests
+2. Full test suite including E2E tests
+3. Coverage reports generated automatically
+4. Tests must pass before merge approval
+
+**Release Testing:**
+1. Full E2E test suite
+2. Performance testing
+3. Load testing (if applicable)
+4. Security scanning
+5. Manual smoke testing
 
 ### Test Coverage Goals
 
-- Unit tests: 90%+ coverage
-- Integration tests: 80%+ coverage
-- E2E tests: All critical user flows
-- Code coverage reports: `make test-coverage`
+**Unit Tests:**
+- Goal: 90%+ code coverage
+- Focus: Core logic (query runner, metrics, profiler)
+- Measure: Use `go test -cover` to see coverage
+- Report: Generate coverage reports with `make test-coverage`
+
+**Integration Tests:**
+- Goal: 80%+ coverage of component interactions
+- Focus: Database operations, LLM integration, API endpoints
+- Measure: Test all major component interactions
+- Report: Separate integration test reports
+
+**E2E Tests:**
+- Goal: All critical user flows covered
+- Focus: Complete workflows from user request to response
+- Measure: Count of test scenarios, not code coverage
+- Report: E2E test results in CI/CD output
+
+### Beginner-Friendly Testing Tips
+
+**Start Simple:**
+1. Write one test at a time
+2. Test happy path first (normal operation)
+3. Add edge cases gradually
+4. Don't worry about 100% coverage initially
+
+**Use Test Helpers:**
+1. Create helper functions for common test setup
+2. Reuse test fixtures across tests
+3. Create test utilities for repeated patterns
+4. Keep tests DRY (Don't Repeat Yourself)
+
+**Readable Tests:**
+1. Use descriptive test names
+2. Include comments explaining test purpose
+3. Keep tests focused (one thing per test)
+4. Verify specific, clear assertions
+
+**Common Pitfalls to Avoid:**
+1. Don't test implementation details (test behavior instead)
+2. Don't make tests dependent on execution order
+3. Don't use real external services in unit tests (use mocks)
+4. Don't ignore flaky tests (fix or remove them)
+5. Don't write tests that are too complex (simplify if needed)
+
+### Mock Services
+
+**Why Mock?**
+- Tests run faster (no real API calls)
+- Tests are reliable (no network dependencies)
+- Tests are isolated (don't affect external services)
+- Can test error scenarios easily
+
+**What to Mock:**
+- LLM API calls (slow, requires API keys)
+- External database connections (for unit tests)
+- Time-dependent operations (for deterministic tests)
+- Random number generation (for predictable tests)
+
+**Mock Implementation Approach:**
+1. Create interface for service (LLM client, database, etc.)
+2. Create mock implementation of interface
+3. Use mock in tests instead of real service
+4. Control mock responses for different test scenarios
 
 ---
 
@@ -2967,35 +3918,1392 @@ Allows maximum adoption while protecting contributors. Alternative: Apache 2.0 f
 
 ---
 
-## 16. MVP Implementation Phases
+## 16. Beginner-Friendly Implementation Plan
 
-### Phase 1: Foundation (Week 1)
+### Overview
 
-- Project structure setup
-- Goa API design
-- Database schema and migrations
-- Basic query execution
+This section provides step-by-step instructions for implementing PgQueryNarrative from scratch. Each phase includes detailed tasks, verification steps, and testing procedures. Follow phases in order - each builds on the previous phase.
 
-### Phase 2: Core Features (Week 2)
+### Prerequisites Checklist
 
-- Result profiling
-- Metrics calculation
-- Ollama LLM integration
-- Basic narrative generation
+Before starting, ensure you have:
 
-### Phase 3: UI & Polish (Week 3)
+- [ ] Go 1.21 or later installed (`go version`)
+- [ ] PostgreSQL 14+ installed and running (`psql --version`)
+- [ ] Git installed (`git --version`)
+- [ ] Basic understanding of Go syntax
+- [ ] Basic understanding of SQL and PostgreSQL
+- [ ] Text editor or IDE (VS Code recommended)
+- [ ] Terminal/command line access
 
-- Templ templates
-- HTMX interactions
-- Saved queries management
-- Report display and export
+**Optional but Recommended:**
+- [ ] Docker installed (for easier database setup)
+- [ ] Ollama installed (for local LLM testing)
+- [ ] Make installed (for convenience commands)
 
-### Phase 4: Enhancements (Week 4)
+---
 
-- Time-series analysis
-- Chart suggestions
-- Additional LLM providers
-- Error handling improvements
+## Phase 1: Foundation Setup (Week 1)
+
+### Goal
+Set up project structure, create database schema, and implement basic query execution.
+
+### Day 1-2: Project Structure & Dependencies
+
+#### Task 1.1: Initialize Go Module
+
+**Steps:**
+1. Create project directory: `mkdir pgquerynarrative && cd pgquerynarrative`
+2. Initialize Go module: `go mod init github.com/yourusername/pgquerynarrative`
+3. Verify `go.mod` file is created
+4. Create directory structure following project structure from Section 5
+5. Create main directories: `cmd/server`, `internal`, `design`, `web`, `scripts`, `test`
+
+**Verification:**
+- Run `go mod init` - should create go.mod file
+- Check directory structure matches Section 5
+- All required directories exist
+
+#### Task 1.2: Install Core Dependencies
+
+**Steps:**
+1. Install Goa framework: `go get goa.design/goa/v3`
+2. Install PostgreSQL driver: `go get github.com/jackc/pgx/v5`
+3. Install connection pooling: `go get github.com/jackc/pgx/v5/pgxpool`
+4. Install migration tool: `go get -tags 'postgres' github.com/golang-migrate/migrate/v4`
+5. Run `go mod tidy` to organize dependencies
+
+**Verification:**
+- Check `go.mod` file contains required packages
+- Run `go mod verify` to ensure dependencies are valid
+- No errors when running `go mod tidy`
+
+#### Task 1.3: Create Basic Project Files
+
+**Steps:**
+1. Create `.gitignore` file with Go and PostgreSQL patterns
+2. Create `README.md` with project description (can expand later)
+3. Create `LICENSE` file (MIT recommended)
+4. Create `Makefile` with basic targets (run, test, lint)
+5. Create `.golangci.yml` for linting configuration
+
+**Verification:**
+- All files are created in correct locations
+- `.gitignore` excludes build artifacts and secrets
+- `Makefile` has placeholder targets (will implement later)
+
+### Day 3-4: Database Setup
+
+#### Task 1.4: Set Up PostgreSQL Database
+
+**Steps:**
+1. Start PostgreSQL server (local or Docker)
+2. Create database: `createdb pgquerynarrative` or `CREATE DATABASE pgquerynarrative;`
+3. Verify database exists: `psql -l | grep pgquerynarrative`
+4. Test connection: `psql -d pgquerynarrative -c "SELECT version();"`
+
+**Verification:**
+- Can connect to database
+- Database exists and is accessible
+- PostgreSQL version is 14 or later
+
+#### Task 1.5: Create Database Schemas
+
+**Steps:**
+1. Create `internal/db/migrations/` directory
+2. Create migration file: `000001_create_schemas.up.sql`
+3. Create `app` schema for application tables
+4. Create `demo` schema for demo/business data
+5. Create migration file: `000001_create_schemas.down.sql` for rollback
+6. Run migration using golang-migrate tool
+
+**Verification:**
+- Schemas are created in database: `psql -d pgquerynarrative -c "\dn"`
+- Both `app` and `demo` schemas exist
+- Migration can be rolled back and re-applied
+
+#### Task 1.6: Create Application Tables
+
+**Steps:**
+1. Create migration: `000002_create_app_tables.up.sql`
+2. Create `app.saved_queries` table with required columns
+3. Create `app.reports` table with required columns
+4. Create `app.audit_logs` table with required columns
+5. Add appropriate indexes (GIN for arrays, B-tree for dates)
+6. Create down migration for rollback
+7. Run migrations
+
+**Verification:**
+- Tables exist: `psql -d pgquerynarrative -c "\dt app.*"`
+- Indexes are created: `psql -d pgquerynarrative -c "\di app.*"`
+- Constraints are in place (PRIMARY KEY, CHECK constraints)
+- Can insert test row into each table
+
+#### Task 1.7: Create Demo Data Schema
+
+**Steps:**
+1. Create migration: `000003_create_demo_schema.up.sql`
+2. Create `demo.sales` table with required columns
+3. Add indexes on date, category, and region columns
+4. Create down migration
+5. Run migrations
+
+**Verification:**
+- `demo.sales` table exists
+- Indexes are created on demo tables
+- Table structure matches schema from Section 6
+
+#### Task 1.8: Set Up Database Roles & Permissions
+
+**Steps:**
+1. Create read-only role: `pgquerynarrative_readonly`
+2. Grant USAGE on demo schema to read-only role
+3. Grant SELECT on demo tables to read-only role
+4. Set default privileges for future demo tables
+5. Create application role: `pgquerynarrative_app`
+6. Grant ALL privileges on app schema to app role
+7. Set default privileges for future app tables
+8. Verify roles have correct permissions
+
+**Verification:**
+- Read-only role can SELECT from demo tables but cannot INSERT/UPDATE/DELETE
+- App role has full access to app schema
+- Test connection with each role to verify permissions
+
+#### Task 1.9: Seed Demo Data
+
+**Steps:**
+1. Create `scripts/seed.sql` file
+2. Write SQL to generate realistic sales data (5,000-10,000 rows)
+3. Include various product categories, regions, and dates
+4. Generate data for last 12 months with realistic patterns
+5. Run seed script: `psql -d pgquerynarrative -f scripts/seed.sql`
+6. Verify data was inserted: `SELECT COUNT(*) FROM demo.sales;`
+
+**Verification:**
+- Data count matches expected number of rows
+- Data has variety (multiple categories, regions, dates)
+- Query returns results: `SELECT * FROM demo.sales LIMIT 10;`
+
+### Day 5-6: Goa API Design
+
+#### Task 1.10: Create Goa API Design Files
+
+**Steps:**
+1. Create `design/` directory
+2. Create `design/design.go` with API definition
+3. Define API title, description, and version
+4. Define server configuration
+5. Create `design/types.go` with shared types
+6. Create `design/queries.go` with query service definition
+7. Create `design/reports.go` with report service definition
+
+**Verification:**
+- All design files exist in `design/` directory
+- Design files can be parsed (no syntax errors)
+- API definition includes required services
+
+#### Task 1.11: Define Query Service Operations
+
+**Steps:**
+1. Define `run` method for query execution
+2. Define `list_saved` method for listing saved queries
+3. Define `save` method for saving queries
+4. Define `get_saved` method for retrieving saved query
+5. Define `delete_saved` method for deleting saved query
+6. Add HTTP endpoint definitions for each method
+7. Define request and response types
+
+**Verification:**
+- All methods are defined in design
+- HTTP endpoints are specified (GET, POST, DELETE)
+- Request/response types are defined
+
+#### Task 1.12: Define Report Service Operations
+
+**Steps:**
+1. Define `generate` method for report generation
+2. Define `get` method for retrieving report
+3. Define `list` method for listing reports
+4. Add HTTP endpoint definitions
+5. Define report context and narrative types
+6. Define error responses
+
+**Verification:**
+- Report service methods are defined
+- Context types include audience and tone options
+- Error responses are properly defined
+
+#### Task 1.13: Generate Goa Code
+
+**Steps:**
+1. Install Goa CLI: `go install goa.design/goa/v3/cmd/goa@latest`
+2. Run code generation: `goa gen ./design -o gen`
+3. Verify generated code appears in `gen/` directory
+4. Check for generation errors in output
+5. Add `gen/` to `.gitignore` (generated code shouldn't be committed)
+
+**Verification:**
+- `gen/` directory contains generated code
+- HTTP server code is generated
+- Service interfaces are generated
+- No generation errors
+
+### Day 7: Basic Query Execution
+
+#### Task 1.14: Create Database Connection Module
+
+**Steps:**
+1. Create `internal/db/connection.go` file
+2. Implement connection pool setup using pgxpool
+3. Create separate connection pools for read-only and app operations
+4. Add connection configuration from environment variables
+5. Implement connection health check function
+6. Add connection closing functionality
+
+**Verification:**
+- Can create connection pool successfully
+- Connection pool connects to database
+- Health check returns success when database is accessible
+- Read-only and app pools connect with different roles
+
+#### Task 1.15: Implement Query Runner - Basic Execution
+
+**Steps:**
+1. Create `internal/queryrunner/runner.go` file
+2. Implement basic query execution function
+3. Execute SQL query using read-only connection pool
+4. Fetch query results (columns and rows)
+5. Return results as structured data
+6. Add query timeout (30 seconds)
+7. Enforce result limit (1000 rows maximum)
+
+**Verification:**
+- Can execute simple SELECT query
+- Results are returned with columns and rows
+- Query timeout works (test with slow query)
+- Result limit is enforced (test with large result set)
+
+#### Task 1.16: Implement Query Validator - Basic Validation
+
+**Steps:**
+1. Create `internal/queryrunner/validator.go` file
+2. Implement query length check (max 10,000 characters)
+3. Implement check for only SELECT statements
+4. Implement disallowed keywords check (INSERT, UPDATE, DELETE, etc.)
+5. Implement schema access validation (only allowed schemas)
+6. Add clear error messages for each validation failure
+
+**Verification:**
+- Valid SELECT queries are accepted
+- Invalid queries (INSERT, UPDATE) are rejected
+- Queries referencing disallowed schemas are rejected
+- Error messages clearly explain why query was rejected
+
+#### Task 1.17: Create Basic API Service
+
+**Steps:**
+1. Create service implementation in `internal/service/` directory
+2. Implement query service interface (from generated code)
+3. Implement basic `run` method that calls query runner
+4. Return query results in expected format
+5. Handle validation errors properly
+6. Return appropriate HTTP responses
+
+**Verification:**
+- Service implements generated interface
+- Can handle valid query requests
+- Returns proper error responses for invalid queries
+- Response format matches API design
+
+#### Task 1.18: Create Server Entry Point
+
+**Steps:**
+1. Create `cmd/server/main.go` file
+2. Set up HTTP server using generated code
+3. Register query service with HTTP server
+4. Configure server with port and host from environment
+5. Add graceful shutdown handling
+6. Add basic logging
+
+**Verification:**
+- Server starts without errors
+- Server listens on configured port (default 8080)
+- Can send HTTP request to server (GET /health or similar)
+- Server shuts down gracefully on interrupt
+
+#### Task 1.19: Test Query Execution Endpoint
+
+**Steps:**
+1. Start server: `make run` or `go run cmd/server/main.go`
+2. Send POST request to `/api/v1/queries/run` with test SQL
+3. Verify response status is 200 OK
+4. Verify response contains columns and rows
+5. Verify row count matches database
+6. Test with invalid query and verify error response
+
+**Verification:**
+- API endpoint responds to requests
+- Valid queries return results
+- Invalid queries return error responses
+- Response format matches API design
+
+**Testing Checklist for Phase 1:**
+- [ ] Project structure is correct
+- [ ] Dependencies are installed
+- [ ] Database is set up with schemas and tables
+- [ ] Demo data is seeded
+- [ ] Roles and permissions are configured
+- [ ] Goa API design is complete
+- [ ] Code is generated from design
+- [ ] Query execution works
+- [ ] Query validation works
+- [ ] API endpoint responds correctly
+- [ ] All unit tests pass (if written)
+
+---
+
+## Phase 2: Core Features (Week 2)
+
+### Goal
+Implement result profiling, metrics calculation, LLM integration, and basic narrative generation.
+
+### Day 8-9: Result Profiling
+
+#### Task 2.1: Implement Column Type Detection
+
+**Steps:**
+1. Create `internal/queryrunner/profiler.go` file
+2. Implement function to analyze column types from query results
+3. Detect numeric columns (INTEGER, DECIMAL, NUMERIC, FLOAT)
+4. Detect date columns (DATE, TIMESTAMP, TIMESTAMPTZ)
+5. Detect category columns (TEXT with limited distinct values)
+6. Store column metadata (name, type, detected characteristics)
+
+**Verification:**
+- Numeric columns are correctly identified
+- Date columns are detected properly
+- Category columns are recognized (few distinct values)
+- Column metadata includes all required information
+
+#### Task 2.2: Implement Pattern Detection
+
+**Steps:**
+1. Detect time-series patterns (date column present with sequential dates)
+2. Detect grouped data structures (GROUP BY patterns)
+3. Identify measure columns (numeric columns suitable for aggregation)
+4. Identify dimension columns (category or date columns for grouping)
+5. Detect empty result sets
+6. Detect single-row results (aggregated data)
+
+**Verification:**
+- Time-series patterns are correctly identified
+- Grouped structures are detected
+- Measure and dimension columns are properly categorized
+- Edge cases (empty, single row) are handled
+
+#### Task 2.3: Integrate Profiling with Query Runner
+
+**Steps:**
+1. Modify query runner to call profiler after executing query
+2. Include profile information in query results
+3. Add profiling metadata to result structure
+4. Ensure profiling doesn't significantly slow down query execution
+
+**Verification:**
+- Query results include profile information
+- Profiling completes quickly (< 50ms)
+- Profile data is accurate and useful
+- Integration doesn't break existing functionality
+
+### Day 10-11: Metrics Calculation
+
+#### Task 2.4: Implement Basic Aggregates
+
+**Steps:**
+1. Create `internal/metrics/calculator.go` file
+2. Implement total calculation (sum of numeric columns)
+3. Implement average calculation (avg of numeric columns)
+4. Implement minimum and maximum calculations
+5. Calculate counts (total rows, distinct values)
+6. Handle NULL values in calculations
+
+**Verification:**
+- Totals are calculated correctly for known data
+- Averages are computed accurately
+- Min/max values are identified correctly
+- NULL values are handled properly
+
+#### Task 2.5: Implement Top Categories
+
+**Steps:**
+1. Identify category columns from profiling
+2. Calculate top N categories by measure (revenue, count, etc.)
+3. Calculate contribution percentages for top categories
+4. Include category value, measure value, and percentage
+5. Limit to top 10 categories by default
+
+**Verification:**
+- Top categories are correctly identified
+- Contribution percentages are accurate
+- Categories are sorted by measure value
+- Handles cases with fewer than N categories
+
+#### Task 2.6: Implement Time-Series Metrics
+
+**Steps:**
+1. Detect time-series data from profiling
+2. Calculate period-over-period changes (current vs previous period)
+3. Calculate growth rates and percentages
+4. Detect trend direction (upward, downward, flat)
+5. Calculate moving averages if applicable
+
+**Verification:**
+- Period-over-period changes are calculated correctly
+- Growth percentages are accurate
+- Trend direction is correctly identified
+- Handles edge cases (single period, missing periods)
+
+#### Task 2.7: Integrate Metrics with Query Results
+
+**Steps:**
+1. Modify query runner to calculate metrics after profiling
+2. Include metrics in query result response
+3. Ensure metrics calculation is fast (< 100ms for typical queries)
+4. Handle edge cases (empty results, single row) gracefully
+
+**Verification:**
+- Query results include computed metrics
+- Metrics are calculated quickly
+- Metrics are accurate for test data
+- Edge cases don't cause errors
+
+### Day 12-13: LLM Integration - Ollama Setup
+
+#### Task 2.8: Install and Configure Ollama
+
+**Steps:**
+1. Install Ollama (local installation or Docker)
+2. Pull recommended model: `ollama pull llama3.2`
+3. Start Ollama server (if not auto-started)
+4. Verify Ollama is running: `curl http://localhost:11434/api/tags`
+5. Test model works: `ollama run llama3.2 "Hello"`
+
+**Verification:**
+- Ollama is installed and running
+- Model is downloaded and available
+- Can generate responses from Ollama
+- Ollama API responds to requests
+
+#### Task 2.9: Create LLM Client Interface
+
+**Steps:**
+1. Create `internal/llm/client.go` file
+2. Define Client interface with required methods
+3. Define request and response types
+4. Include provider name and model methods
+5. Include health check method
+
+**Verification:**
+- Interface is defined with all required methods
+- Types include all necessary fields
+- Interface is extensible for multiple providers
+
+#### Task 2.10: Implement Ollama Client
+
+**Steps:**
+1. Create `internal/llm/ollama.go` file
+2. Implement Client interface for Ollama
+3. Create HTTP client to communicate with Ollama API
+4. Implement GenerateNarrative method
+5. Handle API requests and responses
+6. Parse Ollama API response format
+7. Add timeout handling (120 seconds for LLM calls)
+
+**Verification:**
+- Can connect to Ollama API
+- Can send generate request to Ollama
+- Receives responses from Ollama
+- Parses responses correctly
+- Handles timeouts and errors
+
+#### Task 2.11: Implement Prompt Building
+
+**Steps:**
+1. Create `internal/llm/prompt.go` file
+2. Build system instructions with guardrails
+3. Format query context (SQL, results, metrics)
+4. Include audience and tone specifications
+5. Add JSON schema requirements for structured output
+6. Build complete prompt with all context
+
+**Verification:**
+- Prompts include all required information
+- Guardrails are clearly stated
+- JSON schema is properly formatted
+- Prompts are clear and unambiguous
+
+### Day 14: Narrative Generation
+
+#### Task 2.12: Implement Narrative Parser
+
+**Steps:**
+1. Create `internal/story/parser.go` file
+2. Extract JSON from LLM response (may include markdown formatting)
+3. Parse JSON into NarrativeContent structure
+4. Validate required fields are present
+5. Validate field types and formats
+6. Handle parsing errors gracefully
+
+**Verification:**
+- Can extract JSON from various response formats
+- Parses valid JSON correctly
+- Detects and reports parsing errors
+- Validates all required fields
+
+#### Task 2.13: Implement Narrative Generator
+
+**Steps:**
+1. Create `internal/story/generator.go` file
+2. Implement function that orchestrates narrative generation
+3. Build prompt from query results and context
+4. Call LLM client to generate narrative
+5. Parse LLM response into structured narrative
+6. Validate narrative structure and content
+7. Return complete narrative with metrics
+
+**Verification:**
+- Generates narrative from query results
+- Narrative includes required sections (headline, takeaways, etc.)
+- All claims cite source metrics
+- Narrative structure is valid
+
+#### Task 2.14: Integrate Narrative Generation with API
+
+**Steps:**
+1. Implement report generation service method
+2. Execute query if not provided
+3. Calculate metrics from query results
+4. Generate narrative using LLM
+5. Store report in database
+6. Return report to user
+
+**Verification:**
+- API endpoint generates reports successfully
+- Reports are stored in database
+- Report responses include complete narrative
+- Error handling works (LLM unavailable, invalid query)
+
+**Testing Checklist for Phase 2:**
+- [ ] Result profiling detects column types correctly
+- [ ] Pattern detection identifies time-series and grouped data
+- [ ] Metrics are calculated accurately
+- [ ] Top categories are identified correctly
+- [ ] Time-series metrics work properly
+- [ ] Ollama client connects and generates responses
+- [ ] Prompts are well-formed and include guardrails
+- [ ] Narrative parser extracts JSON correctly
+- [ ] Narrative generator produces valid narratives
+- [ ] API endpoint generates reports successfully
+- [ ] All unit tests pass
+- [ ] Integration tests pass
+
+---
+
+## Phase 3: UI & Polish (Week 3)
+
+### Goal
+Create web user interface, implement saved queries management, and add export functionality.
+
+### Day 15-16: Basic Web UI Setup
+
+#### Task 3.1: Set Up Templ and HTMX
+
+**Steps:**
+1. Install Templ: `go install github.com/a-h/templ/cmd/templ@latest`
+2. Install HTMX: Download htmx.min.js to `web/static/js/`
+3. Create `web/templates/` directory
+4. Create `web/static/css/` directory
+5. Create basic CSS file for styling
+
+**Verification:**
+- Templ CLI is installed and accessible
+- HTMX library is in correct location
+- Directories are created properly
+
+#### Task 3.2: Create Base Template
+
+**Steps:**
+1. Create `web/templates/base.templ` file
+2. Define HTML structure (head, body, navigation)
+3. Include HTMX library in head
+4. Include CSS file
+5. Define layout with header, main content area, footer
+6. Add navigation links (Query, Saved Queries, Reports)
+
+**Verification:**
+- Base template compiles without errors
+- HTML structure is correct
+- HTMX is included
+- Layout is clean and usable
+
+#### Task 3.3: Create Query Page Template
+
+**Steps:**
+1. Create `web/templates/query.templ` file
+2. Create SQL query editor (textarea)
+3. Add Run Query button
+4. Add Results display area
+5. Add Generate Report button
+6. Integrate with base template
+
+**Verification:**
+- Query page loads correctly
+- Editor is functional
+- Buttons are present and styled
+- Page integrates with base template
+
+#### Task 3.4: Serve Static Files and Templates
+
+**Steps:**
+1. Configure HTTP server to serve static files from `web/static/`
+2. Register Templ-generated handlers
+3. Add route for query page
+4. Test that page loads in browser
+
+**Verification:**
+- Static files (CSS, JS) are served correctly
+- Query page loads in browser
+- HTMX library loads
+- No 404 errors for assets
+
+### Day 17-18: HTMX Integration
+
+#### Task 3.5: Implement Query Execution via HTMX
+
+**Steps:**
+1. Add HTMX attributes to Run Query button
+2. Configure HTMX to POST to `/api/v1/queries/run`
+3. Display results in results area
+4. Handle loading states (show loading indicator)
+5. Handle error states (display error messages)
+
+**Verification:**
+- Clicking Run Query sends request
+- Results are displayed in page
+- Loading indicator shows during request
+- Errors are displayed clearly
+
+#### Task 3.6: Create Results Display Template
+
+**Steps:**
+1. Create `web/templates/results.templ` file
+2. Display query results as table
+3. Show column headers
+4. Display rows with formatting
+5. Show row count and execution time
+6. Display computed metrics summary
+
+**Verification:**
+- Results table displays correctly
+- Data is formatted properly
+- Metrics are visible
+- Large results are handled (scrollable)
+
+#### Task 3.7: Implement Report Generation via HTMX
+
+**Steps:**
+1. Add HTMX attributes to Generate Report button
+2. Configure HTMX to POST to `/api/v1/reports/generate`
+3. Show loading state during generation (can take 5-10 seconds)
+4. Display generated report when complete
+5. Handle errors (LLM unavailable, timeout)
+
+**Verification:**
+- Report generation triggers correctly
+- Loading state is clear to user
+- Generated report is displayed
+- Errors are handled gracefully
+
+#### Task 3.8: Create Narrative Display Template
+
+**Steps:**
+1. Create `web/templates/narrative.templ` file
+2. Display headline prominently
+3. Show summary section
+4. Display key takeaways as list
+5. Show notable changes
+6. Display top drivers
+7. Show risks/limitations
+8. Display confidence level
+
+**Verification:**
+- Narrative is well-formatted and readable
+- All sections are displayed
+- Visual hierarchy is clear
+- Readable for non-technical users
+
+### Day 19: Saved Queries Management
+
+#### Task 3.9: Implement Save Query API Endpoint
+
+**Steps:**
+1. Implement save query service method
+2. Validate query name and SQL
+3. Save query to database using app connection pool
+4. Generate tags automatically or from input
+5. Return saved query with ID
+
+**Verification:**
+- Can save queries via API
+- Queries are stored in database
+- Validation works (empty name, invalid SQL)
+- Saved queries are retrievable
+
+#### Task 3.10: Implement List Saved Queries
+
+**Steps:**
+1. Implement list saved queries service method
+2. Support filtering by tags
+3. Support pagination (limit/offset)
+4. Return list of saved queries with metadata
+5. Sort by creation date (newest first)
+
+**Verification:**
+- Can list saved queries via API
+- Tag filtering works
+- Pagination works correctly
+- Results are sorted properly
+
+#### Task 3.11: Create Saved Queries UI
+
+**Steps:**
+1. Create saved queries page template
+2. Display list of saved queries
+3. Show query name, description, tags, creation date
+4. Add button to load query into editor
+5. Add button to generate report from saved query
+6. Add delete button with confirmation
+
+**Verification:**
+- Saved queries page displays list
+- Can load query into editor
+- Can generate report from saved query
+- Can delete saved queries
+
+#### Task 3.12: Implement Query Loading
+
+**Steps:**
+1. Add HTMX attribute to "Load Query" buttons
+2. Fetch saved query from API
+3. Populate query editor with SQL
+4. Optionally run query automatically
+5. Update UI to show query is loaded
+
+**Verification:**
+- Clicking Load Query populates editor
+- SQL is displayed correctly
+- Can run loaded query
+- UI updates appropriately
+
+### Day 20-21: Export & Polish
+
+#### Task 3.13: Implement Report Export
+
+**Steps:**
+1. Create markdown export function
+2. Format narrative as markdown document
+3. Include metadata (date, query, metrics summary)
+4. Create JSON export function
+5. Add export buttons to narrative display
+
+**Verification:**
+- Markdown export creates valid markdown
+- JSON export creates valid JSON
+- Export buttons work
+- Downloaded files are properly formatted
+
+#### Task 3.14: Add Report List Page
+
+**Steps:**
+1. Implement list reports API endpoint
+2. Support filtering by saved_query_id
+3. Support pagination
+4. Create reports list page template
+5. Display report metadata (date, query, headline)
+6. Add link to view full report
+
+**Verification:**
+- Can list reports via API
+- Reports page displays correctly
+- Can view individual reports
+- Filtering and pagination work
+
+#### Task 3.15: Polish UI/UX
+
+**Steps:**
+1. Improve CSS styling for better appearance
+2. Add loading indicators for all async operations
+3. Improve error message display
+4. Add success messages for actions
+5. Improve responsive design (works on mobile)
+6. Add keyboard shortcuts if helpful
+
+**Verification:**
+- UI looks professional and clean
+- Loading states are clear
+- Error messages are helpful
+- UI works on different screen sizes
+
+**Testing Checklist for Phase 3:**
+- [ ] Web UI loads correctly
+- [ ] Query editor works
+- [ ] Results are displayed properly
+- [ ] Report generation works via UI
+- [ ] Saved queries can be saved
+- [ ] Saved queries can be listed and loaded
+- [ ] Reports can be exported (Markdown and JSON)
+- [ ] UI is responsive and usable
+- [ ] All UI tests pass (if written)
+- [ ] Manual testing of complete user flows
+
+---
+
+## Phase 4: Enhancements (Week 4)
+
+### Goal
+Add time-series analysis, chart suggestions, additional LLM providers, and improve error handling.
+
+### Day 22-23: Advanced Metrics
+
+#### Task 4.1: Enhance Time-Series Analysis
+
+**Steps:**
+1. Improve time-series pattern detection
+2. Detect seasonal patterns (monthly, quarterly, yearly)
+3. Calculate compound growth rates
+4. Detect anomalies in time-series data
+5. Provide more detailed trend analysis
+
+**Verification:**
+- Seasonal patterns are detected correctly
+- Growth rates are calculated accurately
+- Anomalies are identified when present
+- Trend analysis is more detailed
+
+#### Task 4.2: Implement Chart Suggestions
+
+**Steps:**
+1. Analyze query results to suggest chart types
+2. Suggest bar charts for category comparisons
+3. Suggest line charts for time-series data
+4. Suggest pie charts for composition analysis
+5. Include chart suggestion in report response
+6. Display chart suggestions in UI
+
+**Verification:**
+- Chart suggestions are relevant to data
+- Suggestions are based on result structure
+- Multiple chart types are suggested appropriately
+- Suggestions are displayed in UI
+
+#### Task 4.3: Add Period Comparisons
+
+**Steps:**
+1. Enable automatic period-over-period comparisons
+2. Compare to previous period (day, week, month, year)
+3. Calculate percentage changes
+4. Include comparisons in narrative generation
+5. Highlight significant changes
+
+**Verification:**
+- Period comparisons are calculated correctly
+- Comparisons are included in narratives
+- Significant changes are highlighted
+- Works for different time periods
+
+### Day 24-25: Additional LLM Providers
+
+#### Task 4.4: Implement Groq Client
+
+**Steps:**
+1. Get Groq API key from console.groq.com
+2. Create `internal/llm/groq.go` file
+3. Implement Client interface for Groq
+4. Configure HTTP client for Groq API
+5. Implement API request/response handling
+6. Add Groq to configuration options
+
+**Verification:**
+- Can connect to Groq API
+- Can generate narratives using Groq
+- Groq responses are parsed correctly
+- Groq is faster than Ollama for testing
+
+#### Task 4.5: Implement Gemini Client
+
+**Steps:**
+1. Get Gemini API key from aistudio.google.com
+2. Create `internal/llm/gemini.go` file
+3. Implement Client interface for Gemini
+4. Configure HTTP client for Gemini API
+5. Implement API request/response handling
+6. Add Gemini to configuration options
+
+**Verification:**
+- Can connect to Gemini API
+- Can generate narratives using Gemini
+- Gemini responses are parsed correctly
+- Provider switching works
+
+#### Task 4.6: Add LLM Provider Selection
+
+**Steps:**
+1. Add provider selection to configuration
+2. Implement provider factory function
+3. Support switching providers via environment variable
+4. Update documentation with provider setup instructions
+5. Test all three providers work correctly
+
+**Verification:**
+- Can switch between providers via config
+- All providers generate narratives successfully
+- Configuration is clear and documented
+- Default provider (Ollama) works
+
+### Day 26-27: Error Handling & Robustness
+
+#### Task 4.7: Improve Error Handling
+
+**Steps:**
+1. Review all error paths in code
+2. Add clear, user-friendly error messages
+3. Add error logging for debugging
+4. Implement error recovery where possible
+5. Add retry logic for LLM API calls
+6. Handle network timeouts gracefully
+
+**Verification:**
+- All errors have clear messages
+- Errors are logged for debugging
+- Retry logic works for transient failures
+- Users see helpful error messages
+
+#### Task 4.8: Add Input Validation
+
+**Steps:**
+1. Validate all API inputs thoroughly
+2. Check SQL query length and complexity
+3. Validate report context values
+4. Sanitize user inputs where appropriate
+5. Return validation errors early
+
+**Verification:**
+- Invalid inputs are rejected with clear messages
+- Validation happens before processing
+- Error messages help users fix issues
+- Security checks prevent malicious input
+
+#### Task 4.9: Add Performance Monitoring
+
+**Steps:**
+1. Add execution time tracking for queries
+2. Track LLM response times
+3. Log slow operations (> 1 second)
+4. Add basic metrics collection
+5. Monitor memory usage
+
+**Verification:**
+- Execution times are tracked
+- Slow operations are identified
+- Metrics are logged
+- Performance is acceptable
+
+### Day 28: Testing & Documentation
+
+#### Task 4.10: Comprehensive Testing
+
+**Steps:**
+1. Write unit tests for all new features
+2. Add integration tests for provider switching
+3. Test error scenarios thoroughly
+4. Test edge cases (empty data, very large results)
+5. Run full test suite and fix any failures
+6. Achieve target test coverage (90%+ for core logic)
+
+**Verification:**
+- All tests pass
+- Test coverage meets goals
+- Edge cases are covered
+- Error scenarios are tested
+
+#### Task 4.11: Documentation Updates
+
+**Steps:**
+1. Update README with all features
+2. Document all API endpoints
+3. Add setup instructions for all LLM providers
+4. Document configuration options
+5. Add troubleshooting guide
+6. Include example queries and expected outputs
+
+**Verification:**
+- README is comprehensive and up-to-date
+- API documentation is complete
+- Setup instructions work for new users
+- Examples are clear and helpful
+
+**Testing Checklist for Phase 4:**
+- [ ] Time-series analysis is enhanced
+- [ ] Chart suggestions are accurate
+- [ ] Period comparisons work correctly
+- [ ] Groq integration works
+- [ ] Gemini integration works
+- [ ] Provider switching works
+- [ ] Error handling is robust
+- [ ] Input validation is comprehensive
+- [ ] Performance monitoring is in place
+- [ ] All tests pass
+- [ ] Documentation is complete
+
+---
+
+## Phase 5: Advanced Features (Future - Optional)
+
+### RAG & Vectorization (Optional Enhancement)
+
+**When to Add:** After MVP is stable and working well.
+
+#### Task 5.1: Set Up pgvector Extension
+
+**Steps:**
+1. Install pgvector extension in PostgreSQL
+2. Enable extension in database
+3. Verify extension is installed and working
+4. Test basic vector operations
+
+**Verification:**
+- pgvector extension is enabled
+- Can create vector columns
+- Basic vector operations work
+
+#### Task 5.2: Add Embedding Columns to Tables
+
+**Steps:**
+1. Create migration to add embedding columns to saved_queries
+2. Add embedding columns to reports table
+3. Create vector indexes using IVFFlat (or HNSW for large datasets)
+4. Run migrations
+
+**Verification:**
+- Embedding columns are added
+- Indexes are created
+- Database accepts vector data
+
+#### Task 5.3: Implement Embedding Generation
+
+**Steps:**
+1. Choose embedding model (384 dimensions recommended)
+2. Set up embedding generation service (local or API)
+3. Implement function to generate embeddings for text
+4. Generate embeddings for saved queries (async)
+5. Generate embeddings for reports (async)
+6. Store embeddings in database
+
+**Verification:**
+- Embeddings are generated successfully
+- Embeddings are stored in database
+- Generation happens asynchronously (doesn't block saves)
+
+#### Task 5.4: Implement Semantic Search
+
+**Steps:**
+1. Implement function to search saved queries by similarity
+2. Generate embedding for search query
+3. Use vector similarity search in PostgreSQL
+4. Return similar queries sorted by similarity
+5. Add semantic search to query discovery API
+
+**Verification:**
+- Can search queries by meaning
+- Results are relevant to search query
+- Search is fast (< 50ms for typical searches)
+- Results are ranked by similarity
+
+#### Task 5.5: Implement Context Retrieval
+
+**Steps:**
+1. Implement function to find similar historical reports
+2. Use vector similarity to find related reports
+3. Retrieve context from similar reports
+4. Include context in narrative generation prompts
+5. Update narrative generator to use retrieved context
+
+**Verification:**
+- Similar reports are found correctly
+- Context is retrieved from historical reports
+- Context improves narrative quality
+- Narrative generation time remains acceptable
+
+### MCP Server Integration (Optional Enhancement)
+
+**When to Add:** After core features are stable, if natural language interface is needed.
+
+#### Task 5.6: Set Up MCP Server Foundation
+
+**Steps:**
+1. Learn MCP protocol basics
+2. Set up MCP server structure (separate service or integrated)
+3. Implement basic MCP protocol handlers
+4. Test MCP server starts correctly
+
+**Verification:**
+- MCP server can be started
+- MCP protocol handlers work
+- Server responds to MCP requests
+
+#### Task 5.7: Implement Schema Discovery Tools
+
+**Steps:**
+1. Implement "get_table_schema" tool
+2. Implement "list_available_tables" tool
+3. Implement "get_table_sample" tool
+4. Test tools return correct information
+5. Expose tools via MCP protocol
+
+**Verification:**
+- Tools are available via MCP
+- Tools return correct schema information
+- Tools handle errors gracefully
+
+#### Task 5.8: Integrate MCP with LLM
+
+**Steps:**
+1. Update LLM client to support MCP tools
+2. Provide tool definitions to LLM
+3. Enable LLM to call MCP tools during generation
+4. Test LLM uses tools appropriately
+5. Verify tool calls improve narrative quality
+
+**Verification:**
+- LLM can call MCP tools
+- Tool calls improve context
+- Narratives are more accurate with tool usage
+- Performance impact is acceptable
+
+**Testing Checklist for Phase 5 (Optional):**
+- [ ] pgvector is set up and working
+- [ ] Embeddings are generated correctly
+- [ ] Semantic search finds relevant queries
+- [ ] Context retrieval works
+- [ ] MCP server works (if implemented)
+- [ ] MCP tools are functional
+- [ ] LLM integration with MCP works
+- [ ] All features improve user experience
+
+---
+
+## 17. Learning Resources for Beginners
+
+### PostgreSQL Topics to Study
+
+**Before Starting Development:**
+
+**1. Essential PostgreSQL Concepts (Priority 1):**
+- Schema management: Multiple schemas, schema access
+- Roles and permissions: CREATE ROLE, GRANT, REVOKE
+- Data types: UUID, JSONB, TEXT[], TIMESTAMPTZ
+- Basic indexes: B-tree indexes, when to use them
+
+**2. SQL Features (Priority 1):**
+- SELECT statements: Basic queries, filtering, sorting
+- Aggregation: SUM, AVG, COUNT, GROUP BY, HAVING
+- JOINs: INNER JOIN, LEFT JOIN
+- Date functions: DATE_TRUNC, EXTRACT, INTERVAL arithmetic
+- Common Table Expressions (CTEs): WITH clauses
+
+**3. Advanced SQL (Priority 2):**
+- Window functions: ROW_NUMBER, LAG, LEAD
+- Time-series queries: Monthly/quarterly grouping
+- Subqueries: Correlated and uncorrelated
+- Conditional logic: CASE statements
+
+**4. PostgreSQL-Specific (Priority 2):**
+- JSON/JSONB operations: ->, ->>, @>, jsonb_build_object
+- Array operations: ANY, ALL, array operators
+- Index types: GIN indexes for arrays/JSONB
+- Connection pooling: pgxpool basics
+
+**5. Advanced Features (Priority 3 - Future):**
+- Full-text search: to_tsvector, to_tsquery
+- Functions and stored procedures
+- Triggers and event notifications
+- Extensions: pgvector, pg_trgm
+
+**Recommended Learning Path:**
+
+**Week 1 (Before Development):**
+- Study: Schema management, roles, basic data types
+- Practice: Create databases, schemas, tables locally
+- Hands-on: Set up test database and create sample tables
+
+**Week 2 (During Phase 1):**
+- Study: SQL aggregation, GROUP BY, date functions
+- Practice: Write queries similar to what PgQueryNarrative will execute
+- Hands-on: Create seed data and test various query patterns
+
+**Week 3 (During Phase 2):**
+- Study: Window functions, CTEs, advanced queries
+- Practice: Time-series queries, period comparisons
+- Hands-on: Write queries that match real use cases
+
+### Go Learning Resources
+
+**Essential Go Concepts for PgQueryNarrative:**
+
+**1. Go Basics (Priority 1):**
+- Package structure and imports
+- Functions, methods, and interfaces
+- Error handling (error return values)
+- Structs and type definitions
+- Pointers and references
+
+**2. Concurrency (Priority 2):**
+- Goroutines basics
+- Channels for communication
+- Context package for cancellation
+- sync package for synchronization
+
+**3. Standard Library (Priority 1):**
+- net/http: HTTP server and clients
+- context: Request cancellation and timeouts
+- encoding/json: JSON encoding and decoding
+- database/sql and pgx: Database access
+- os and os/exec: Environment variables, command execution
+
+**4. Testing (Priority 1):**
+- Writing tests: Test functions, test files
+- testify package: Assertions and test helpers
+- Table-driven tests
+- Mocking interfaces
+
+**Recommended Learning Path:**
+
+**Week 1 (Before Development):**
+- Study: Go basics, error handling, structs
+- Practice: Write simple Go programs
+- Hands-on: Create small HTTP server
+
+**Week 2 (During Development):**
+- Study: Database access with pgx, HTTP handlers
+- Practice: Connect to PostgreSQL, execute queries
+- Hands-on: Build simple query execution program
+
+**Week 3 (During Development):**
+- Study: Testing in Go, interfaces, dependency injection
+- Practice: Write tests for database operations
+- Hands-on: Create test suite for components
+
+### Online Resources
+
+**PostgreSQL Learning:**
+- PostgreSQL Tutorial: www.postgresqltutorial.com (interactive lessons)
+- PostgreSQL Documentation: www.postgresql.org/docs (official docs)
+- pgAdmin tutorials: GUI-based learning
+- YouTube: "PostgreSQL for Beginners" (video tutorials)
+
+**Go Learning:**
+- A Tour of Go: tour.golang.org (interactive tutorial)
+- Go by Example: gobyexample.com (code examples)
+- Effective Go: go.dev/doc/effective_go (best practices)
+- Go Standard Library: pkg.go.dev/std (package documentation)
+
+**Practice Platforms:**
+- Create local PostgreSQL instance for practice
+- Write sample queries using seed data
+- Build small Go programs to test concepts
+- Use Docker for isolated development environments
+
+### Learning Schedule Recommendation
+
+**Pre-Development (1-2 weeks):**
+- Day 1-3: PostgreSQL basics (schemas, roles, data types)
+- Day 4-6: SQL essentials (SELECT, aggregations, JOINs)
+- Day 7-9: Go basics (syntax, error handling, HTTP)
+- Day 10-12: Database access in Go (pgx basics)
+- Day 13-14: Testing basics (Go testing, testify)
+
+**During Development:**
+- Learn advanced topics as needed for each phase
+- Reference documentation frequently
+- Practice with small examples before implementing
+- Ask questions and seek help when stuck
+
+---
+
+## 18. Success Metrics
+
+### Performance Targets
+
+**Query Execution:**
+- Target: < 500ms for queries returning < 1000 rows
+- Measurement: Track query execution time in API responses
+- Monitoring: Log slow queries (> 1 second) for optimization
+
+**Narrative Generation:**
+- Target: < 5 seconds for typical reports (LLM dependent)
+- Measurement: Track LLM response time in report metadata
+- Note: Time varies by LLM provider (Ollama slower, Groq faster)
+
+**API Response Times:**
+- Target: < 100ms for non-LLM operations
+- Measurement: Track API endpoint response times
+- Monitoring: Set up performance monitoring for all endpoints
+
+**Database Operations:**
+- Target: < 50ms for saved query operations
+- Target: < 200ms for report retrieval
+- Measurement: Track database query execution times
+
+### Quality Targets
+
+**Test Coverage:**
+- Unit tests: 90%+ coverage for core logic
+- Integration tests: 80%+ coverage for component interactions
+- E2E tests: All critical user flows covered
+- Measurement: Use `go test -cover` to measure coverage
+
+**Narrative Quality:**
+- Zero hallucinations: All claims cite source metrics
+- Evidence-based: No invented facts or explanations
+- Clear limitations: Acknowledges data constraints
+- Appropriate confidence levels: Low/medium/high based on data quality
+
+**Error Handling:**
+- Clear error messages: Users understand what went wrong
+- Graceful degradation: System continues operating when components fail
+- Proper error logging: All errors logged for debugging
+- User-friendly: Technical errors are translated to readable messages
+
+### Usage Metrics (Future)
+
+**Adoption:**
+- Number of queries executed
+- Number of reports generated
+- Number of saved queries created
+- Active users per day/week
+
+**Performance:**
+- Average query execution time
+- Average narrative generation time
+- Cache hit rate (if caching implemented)
+- Error rate by type
+
+**Quality:**
+- User feedback on narrative quality
+- Report export/download frequency
+- Saved query reuse rate
+- Error reports and resolutions
 
 ---
 
@@ -3009,15 +5317,118 @@ Allows maximum adoption while protecting contributors. Alternative: Apache 2.0 f
 
 ---
 
-## 18. Future Enhancements
+## 19. Future Enhancements
 
-- Scheduled report generation
-- Report templates
-- Multi-language narratives
-- Collaborative editing
+### Core Feature Enhancements
+
+**Scheduled Report Generation:**
+- Automatically generate reports on schedule (daily, weekly, monthly)
+- Email reports to stakeholders
+- Compare reports across periods automatically
+- Alert on significant changes
+
+**Report Templates:**
+- Pre-defined report templates for common use cases
+- Customizable templates for specific business needs
+- Template library for different industries
+- Template sharing between users
+
+**Multi-language Narratives:**
+- Generate narratives in multiple languages
+- Automatic translation of narratives
+- Language-specific formatting and terminology
+- Localization support
+
+**Collaborative Editing:**
+- Multiple users can edit saved queries
 - Version control for saved queries
-- Advanced visualizations
-- Custom metric definitions
-- API rate limiting
-- Authentication and authorization
+- Comments and annotations on reports
+- Sharing and permissions
+
+**Advanced Visualizations:**
+- Interactive charts and graphs
+- Export charts as images
+- Multiple chart types per report
+- Dashboard view for multiple reports
+
+### Technical Enhancements
+
+**Custom Metric Definitions:**
+- Users define custom metrics
+- Reusable metric formulas
+- Metric library and sharing
+- Complex metric calculations
+
+**API Rate Limiting:**
+- Per-user rate limiting
+- Tiered access levels
+- Rate limit notifications
+- Fair usage policies
+
+**Authentication and Authorization:**
+- User authentication (JWT, OAuth)
+- Role-based access control (RBAC)
+- Resource-level permissions
 - Multi-tenant support
+
+**Multi-tenant Support:**
+- Organization-based data isolation
+- Tenant-specific configurations
+- Cross-tenant analytics
+- Tenant management interface
+
+### Advanced Features (RAG & AI)
+
+**RAG & Vectorization (Phase 5):**
+- Semantic query search using embeddings
+- Historical context retrieval for narratives
+- Schema knowledge base for domain understanding
+- Semantic caching for faster responses
+- Vector similarity search for query discovery
+
+**MCP Server Integration (Phase 5):**
+- Natural language to SQL query generation
+- Intelligent query suggestions based on schema
+- Schema-aware narrative generation
+- Automated context retrieval
+- Multi-database support via MCP
+
+**Advanced AI Features:**
+- Query optimization suggestions
+- Anomaly detection in data
+- Predictive insights
+- Automated follow-up question generation
+- Conversation-based query building
+
+### Platform Enhancements
+
+**API Improvements:**
+- GraphQL API option
+- WebSocket support for real-time updates
+- API versioning strategy
+- API rate limiting and quotas
+- API analytics and monitoring
+
+**Integration Capabilities:**
+- Slack integration for report notifications
+- Email integration for scheduled reports
+- BI tool integrations (Tableau, Power BI connectors)
+- Data warehouse integrations
+- ETL pipeline integrations
+
+**Data Sources:**
+- Support for multiple database types (MySQL, SQL Server)
+- CSV file upload and query
+- Data warehouse connections (Snowflake, BigQuery)
+- API data source connectors
+- Real-time data streaming support
+
+**Enterprise Features:**
+- Audit logging and compliance reporting
+- Data governance and lineage tracking
+- Advanced security (encryption at rest, field-level encryption)
+- High availability and disaster recovery
+- Performance monitoring and alerting
+- Cost optimization features
+
+---
